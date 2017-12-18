@@ -2,7 +2,7 @@ import socket, select
 
 def broadcast_data (sock, message):
     for socket in CONNECTION_LIST:
-        if socket != server_socket and room_dic[socket] == room_dic[sock]:
+        if socket != server_socket and room_dic.get(socket, 0) == room_dic.get(sock, 0):
             try:
                 socket.send(message)
             except:
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     server_socket.listen(MAX_CLIENT)
 
     CONNECTION_LIST.append(server_socket)
-    room_dic[server_socket] = 0
+    room_dic[server_socket] = '0'
     nickname_dic[server_socket] = "admin"
 
     print "Chat server started on port " + str(PORT)
@@ -43,19 +43,20 @@ if __name__ == "__main__":
                     data = sock.recv(RECV_BUFFER)
                     print data
                     if data:
-                        if data[0:6] == "$info$":
-                            data = data[6:-1]
+                        if data[0] == '$' and data[-1] == '$':
+                            data = data[1:-1]
                             print data
-                            roomno, nickname = data.split(',')
-                            room_dic[sock] = roomno
-                            nickname_dic[sock] = nickname
-                            print roomno, nickname
-                            print "%s entered chat-room %s\n" %(nickname, roomno)
-                            broadcast_data(sock, "%s entered chat-room %s\n" %(nickname, roomno))
+                            key, value = data.split(':')
+                            print key, value
+                            if key == "nickname":
+                                nickname_dic[sock] = value
+                            if key == "room":
+                                room_dic[sock] = value
+                                broadcast_data(sock, "%s entered chat-room %s\n" %(nickname_dic.get(sock), value))
                         else:
-                            broadcast_data(sock, "\r" + '<' + nickname_dic[sock] + '> ' + data)
+                            broadcast_data(sock, "\r" + '<' + nickname_dic.get(sock, sock) + '> ' + data)
                 except:
-                    broadcast_data(sock, "%s is offline" %nickname_dic[sock])
+                    broadcast_data(sock, "%s is offline" % nickname_dic.get(sock, sock))
                     print "Client (%s, %s) is offline" % addr
                     sock.close()
                     CONNECTION_LIST.remove(sock)
